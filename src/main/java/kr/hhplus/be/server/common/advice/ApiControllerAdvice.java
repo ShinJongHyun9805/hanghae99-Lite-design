@@ -31,7 +31,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(value = DuplicateMemberException.class)
     public ResponseEntity<String> DuplicateMemberException(DuplicateMemberException e) {
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .status(HttpStatus.CONFLICT)
                 .body(e.getMessage());
     }
 }

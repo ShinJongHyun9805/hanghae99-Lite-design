@@ -29,6 +29,11 @@ logging:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
 
+security:
+  jwt:
+    secret: "a7b4e8c3d2f9b6a1c5e7d4f2a9b8c1e3f6d7a2b9e4c8f5d1a3e9b7c4f2d6a8e1"
+    access-token-validity-seconds: 3600
+
 springdoc:
   swagger-ui:
     display-request-duration: true

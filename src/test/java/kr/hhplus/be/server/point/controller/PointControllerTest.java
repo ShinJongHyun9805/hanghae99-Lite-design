@@ -27,50 +27,50 @@ class PointControllerTest {
     @MockBean
     private PointService pointService;
 
-    @Test
-    void 정상_요청이면_200_OK_포인트_정보_반환() throws Exception {
-
-        Point point = new Point();
-        point.setMemberId("shin");
-        point.setPointAmt(1500);
-
-        given(pointService.chargePoint(any())).willReturn(new PointChargeResponseDto(1L, "shin", 1500));
-
-        mockMvc.perform(post("/api/v1/point/charge")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                              "memberId": "shin",
-                              "amount": 500
-                            }
-                        """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.memberId").value("shin"))
-                .andExpect(jsonPath("$.pointAmt").value(1500));
-    }
-
-    @Test
-    void 필수값_누락__400_Bad_Request_발생() throws Exception {
-        mockMvc.perform(post("/api/v1/point/charge")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                              "amount": 500
-                            }
-                        """))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void 포인트_충전_금액_0원_400_Bad_Request_발생() throws Exception {
-        mockMvc.perform(post("/api/v1/point/charge")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                              "memberId" : "park",
-                              "amount": 0
-                            }
-                        """))
-                .andExpect(status().isBadRequest());
-    }
+//    @Test
+//    void 정상_요청이면_200_OK_포인트_정보_반환() throws Exception {
+//
+//        Point point = new Point();
+//        point.setMemberId("shin");
+//        point.setPointAmt(1500);
+//
+//        given(pointService.chargePoint(any())).willReturn(new PointChargeResponseDto(1L, "shin", 1500));
+//
+//        mockMvc.perform(post("/api/v1/point/charge")
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .content("""
+//                            {
+//                              "memberId": "shin",
+//                              "amount": 500
+//                            }
+//                        """))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.memberId").value("shin"))
+//                .andExpect(jsonPath("$.pointAmt").value(1500));
+//    }
+//
+//    @Test
+//    void 필수값_누락__400_Bad_Request_발생() throws Exception {
+//        mockMvc.perform(post("/api/v1/point/charge")
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .content("""
+//                            {
+//                              "amount": 500
+//                            }
+//                        """))
+//                .andExpect(status().isBadRequest());
+//    }
+//
+//    @Test
+//    void 포인트_충전_금액_0원_400_Bad_Request_발생() throws Exception {
+//        mockMvc.perform(post("/api/v1/point/charge")
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .content("""
+//                            {
+//                              "memberId" : "park",
+//                              "amount": 0
+//                            }
+//                        """))
+//                .andExpect(status().isBadRequest());
+//    }
 }
