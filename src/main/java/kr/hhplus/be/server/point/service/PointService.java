@@ -1,54 +1,67 @@
 package kr.hhplus.be.server.point.service;
 
 import jakarta.transaction.Transactional;
+import kr.hhplus.be.server.common.exception.ChargePointException;
 import kr.hhplus.be.server.common.exception.InvalidUserException;
 import kr.hhplus.be.server.point.domain.Point;
 import kr.hhplus.be.server.point.dto.PointChargeRequestDto;
 import kr.hhplus.be.server.point.dto.PointChargeResponseDto;
+import kr.hhplus.be.server.point.dto.PointDto;
+import kr.hhplus.be.server.point.dto.PointDto.PointChargeRequest;
+import kr.hhplus.be.server.point.dto.PointDto.pointResponse;
 import kr.hhplus.be.server.point.repository.PointRepository;
 import kr.hhplus.be.server.member.domain.Member;
 import kr.hhplus.be.server.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class PointService {
 
     private final PointRepository pointRepository;
 
     private final MemberRepository userRepository;
 
-    public PointChargeResponseDto chargePoint(PointChargeRequestDto requestDto) {
+    @Transactional
+    public pointResponse chargePoint(PointChargeRequest requestDto, UserDetails userDetails) {
 
-        Member member = userRepository.findByMemberId(requestDto.getMemberId())
+        if (requestDto.amt() <= 0) {
+            throw new ChargePointException("충전 금액은 1원 이상 가능합니다.");
+        }
+
+        Member member = userRepository.findForUpdateByMemberId(userDetails.getUsername())
                 .orElseThrow(InvalidUserException::new);
 
-        Point point = pointRepository.findByMemberId(member.getMemberId())
+        Point point = pointRepository.findForUpdateByMemberId(member.getMemberId())
                         .orElseGet(() -> {
-                            Point newPoint = new Point();
-                            newPoint.setMemberId(member.getMemberId());
-                            newPoint.setPointAmt(0);
+                            Point np = new Point();
+                            np.setMemberId(member.getMemberId());
+                            np.setPointAmt(0);
 
-                            return newPoint;
+                            return pointRepository.save(np);
                         });
 
-        point.chargePoint(requestDto.getAmount());
+        int next = point.getPointAmt() + requestDto.amt();
+        if (next > Integer.MAX_VALUE) {
+            throw new ChargePointException("충전 금액을 확인해 주세요.");
+        }
 
-        Point save = pointRepository.save(point);
+        point.chargePoint(requestDto.amt());
 
-        return new PointChargeResponseDto(save.getId(), save.getMemberId(), save.getPointAmt());
+        return new pointResponse(userDetails.getUsername(), point.getPointAmt());
     }
 
-    public PointChargeResponseDto getPoint(String memberId) {
+    public pointResponse getPoint(UserDetails userDetails) {
 
-        Member member = userRepository.findByMemberId(memberId)
+        Member member = userRepository.findByMemberId(userDetails.getUsername())
                 .orElseThrow(InvalidUserException::new);
 
-        Point point = pointRepository.findByMemberId(member.getMemberId())
-                .orElseThrow(InvalidUserException::new);
+        int amt = pointRepository.findByMemberId(member.getMemberId())
+                .map(Point::getPointAmt)
+                .orElse(0);
 
-        return new PointChargeResponseDto(point.getId(), point.getMemberId(), point.getPointAmt());
+        return new pointResponse(userDetails.getUsername(), amt);
     }
 }

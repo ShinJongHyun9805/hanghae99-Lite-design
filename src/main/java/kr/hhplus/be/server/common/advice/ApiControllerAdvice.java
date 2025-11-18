@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.common.advice;
 
+import kr.hhplus.be.server.common.exception.ChargePointException;
 import kr.hhplus.be.server.common.exception.DuplicateMemberException;
 import kr.hhplus.be.server.common.exception.InvalidUserException;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,13 @@ class GlobalExceptionHandler {
     public ResponseEntity<String> DuplicateMemberException(DuplicateMemberException e) {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(e.getMessage());
+    }
+
+    @ExceptionHandler(value = ChargePointException.class)
+    public ResponseEntity<String> ChargePointException(ChargePointException e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(e.getMessage());
     }
 }
