@@ -24,3 +24,14 @@
     - Unit Test
   - ConcurrencyPointServiceTest
     - Thread를 활용한 동시성 테스트 확인
+------------------------------------------
+
+## [STEP-3] 예약 가능 날짜 / 좌석 API (콘서트 조회)
+### PR 설명
+- seat
+  - 콘서트, 콘서트 일정, 일정에 해당하는 좌석 초기 셋팅 Initializer
+  - 콘서트 조회 시 예약 가능한 일정 목록 조회
+  - 해당 날짜 정보로 예약 가능한 좌석 정보 조회.
+
+### Definition of Done (DoD)
+  - 단순 조회 기능으로 따로 Test를 진행하지는 않음.

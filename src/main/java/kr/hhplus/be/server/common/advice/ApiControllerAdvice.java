@@ -3,6 +3,7 @@ package kr.hhplus.be.server.common.advice;
 import kr.hhplus.be.server.common.exception.ChargePointException;
 import kr.hhplus.be.server.common.exception.DuplicateMemberException;
 import kr.hhplus.be.server.common.exception.InvalidUserException;
+import kr.hhplus.be.server.common.exception.SeatException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -38,6 +39,13 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(value = ChargePointException.class)
     public ResponseEntity<String> ChargePointException(ChargePointException e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(e.getMessage());
+    }
+
+    @ExceptionHandler(value = SeatException.class)
+    public ResponseEntity<String> ChargePointException(SeatException e) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(e.getMessage());
