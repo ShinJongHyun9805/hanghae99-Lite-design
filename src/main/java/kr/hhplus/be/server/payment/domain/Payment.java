@@ -2,10 +2,13 @@ package kr.hhplus.be.server.payment.domain;
 
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Getter @Setter
 public class Payment {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,7 +20,7 @@ public class Payment {
 
     private Long seatId;
 
-    private String memberId;
+    private Long memberId;
 
     private int price;
 

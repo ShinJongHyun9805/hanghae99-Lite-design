@@ -18,4 +18,12 @@ public class SeatDto {
             Long seatId;
         }
     }
+
+    public record seatReservationRequestDto (
+
+            Long concertScheduleId,
+
+            Long seatId
+
+    ) {}
 }
