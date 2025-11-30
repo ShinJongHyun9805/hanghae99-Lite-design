@@ -30,4 +30,8 @@ public class Payment {
     private LocalDateTime paymentAt;
 
     private String cancelReason;
+
+    private LocalDateTime regDt;
+
+    private LocalDateTime modDt;
 }

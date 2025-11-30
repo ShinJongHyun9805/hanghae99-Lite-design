@@ -18,6 +18,7 @@ import kr.hhplus.be.server.seat.dto.SeatDto.seatResponseDto;
 import kr.hhplus.be.server.seat.dto.SeatDto.seatResponseDto.SeatResponse;
 import kr.hhplus.be.server.seat.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -64,7 +65,21 @@ public class SeatService {
                 .orElseThrow(InvalidUserException::new);
 
         Seat seat = seatRepository.findBySeatIdAndSchedule_ConcertScheduleId(requestDto.seatId(), requestDto.concertScheduleId())
-                .orElseThrow(() -> new SeatException("유효하지 않은 좌석입니다."));
+                .orElseThrow(() -> new SeatException().NotExistsSeatException());
+
+        if (seat.getSeatStatus() == SeatStatus.RESERVED) {
+            throw new SeatException().ReservedSeatException();
+        }
+
+        // 예약된 좌석 > 만료 여부 확인
+        if (seat.getSeatStatus() == SeatStatus.LOCKED && ObjectUtils.isNotEmpty(seat.getLockedAt())) {
+            LocalDateTime now = LocalDateTime.now();
+            boolean invalidLocked = seat.getLockedAt().plusMinutes(5).isAfter(now);
+
+            if (invalidLocked) {
+                throw new SeatException().ReservedSeatException();
+            }    
+        }
 
         // 해당 좌석 LOCKED 처리
         seat.setSeatId(requestDto.seatId());
@@ -85,8 +100,10 @@ public class SeatService {
         payment.setMemberId(member.getId());
         payment.setPrice(concertSchedule.getConcert().getPrice());
         payment.setPaymentStatus(PaymentStatus.PENDING);
-        payment.setPaymentAt(LocalDateTime.now());
+        payment.setPaymentAt(null);
         payment.setCancelReason(null);
+        payment.setRegDt(LocalDateTime.now());
+        payment.setModDt(LocalDateTime.now());
 
         paymentRepository.save(payment);
     }
