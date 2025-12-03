@@ -1,4 +1,4 @@
-package kr.hhplus.be.server.point.domain;
+package kr.hhplus.be.server_v2.entity.point;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
