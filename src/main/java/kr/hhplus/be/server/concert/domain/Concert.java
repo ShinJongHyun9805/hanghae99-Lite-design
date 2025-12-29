@@ -2,12 +2,15 @@ package kr.hhplus.be.server.concert.domain;
 
 import jakarta.persistence.*;
 import kr.hhplus.be.server.concert_schedule.domain.ConcertSchedule;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Getter @Setter
 public class Concert {
 
     @Id
@@ -15,11 +18,9 @@ public class Concert {
     private Long id;
     
     String title;                   // 콘서트 명
-
     String venueName;               // 콘서트 장소 명
     LocalDateTime created_dt;       // 등록 일자
     int price;                      // 금액
-    
     String openYn;                  // 콘서트 진행 여부
 
     @OneToMany(mappedBy = "concert")

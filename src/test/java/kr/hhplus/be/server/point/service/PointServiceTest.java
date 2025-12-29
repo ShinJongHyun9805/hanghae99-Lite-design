@@ -6,6 +6,9 @@ import kr.hhplus.be.server.member.repository.MemberRepository;
 import kr.hhplus.be.server.point.domain.Point;
 import kr.hhplus.be.server.point.dto.PointChargeRequestDto;
 import kr.hhplus.be.server.point.dto.PointChargeResponseDto;
+import kr.hhplus.be.server.point.dto.PointDto;
+import kr.hhplus.be.server.point.dto.PointDto.PointChargeRequest;
+import kr.hhplus.be.server.point.dto.PointDto.pointResponse;
 import kr.hhplus.be.server.point.repository.PointRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Collection;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +38,23 @@ class PointServiceTest {
     @InjectMocks
     private PointService pointService;
 
+    UserDetails userDetails = new UserDetails() {
+        @Override
+        public Collection<? extends GrantedAuthority> getAuthorities() {
+            return null;
+        }
+
+        @Override
+        public String getPassword() {
+            return null;
+        }
+
+        @Override
+        public String getUsername() {
+            return "shin";
+        }
+    };
+
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
@@ -38,15 +63,13 @@ class PointServiceTest {
     @Test
     void 존재하지_않는_회원이면_InvalidUserException_발생() {
 
-        PointChargeRequestDto dto = new PointChargeRequestDto();
-        dto.setMemberId("shin");
-        dto.setAmount(1000);
+        PointChargeRequest dto = new PointChargeRequest(1000);
 
         given(userRepository.findByMemberId("shin")).willReturn(Optional.empty());
 
-        assertThrows(InvalidUserException.class, () -> pointService.chargePoint(dto));
+        assertThrows(InvalidUserException.class, () -> pointService.chargePoint(dto, userDetails));
 
-        verify(userRepository, times(1)).findByMemberId("shin");
+        verify(userRepository, times(1)).findForUpdateByMemberId("shin");
         verify(pointRepository, never()).save(any());
     }
 
@@ -60,18 +83,15 @@ class PointServiceTest {
         point.setMemberId("shin");
         point.setPointAmt(1000);
 
-        PointChargeRequestDto dto = new PointChargeRequestDto();
-        dto.setMemberId("shin");
-        dto.setAmount(500);
+        PointChargeRequest dto = new PointChargeRequest(1000);
 
-        given(userRepository.findByMemberId("shin")).willReturn(Optional.of(member));
-        given(pointRepository.findByMemberId("shin")).willReturn(Optional.of(point));
+        given(userRepository.findForUpdateByMemberId("shin")).willReturn(Optional.of(member));
+        given(pointRepository.findForUpdateByMemberId("shin")).willReturn(Optional.of(point));
         given(pointRepository.save(any(Point.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        PointChargeResponseDto pointChargeResponseDto = pointService.chargePoint(dto);
+        pointResponse pointChargeResponseDto = pointService.chargePoint(dto, userDetails);
 
-        assertEquals(1500, pointChargeResponseDto.getPointAmt());
-        verify(pointRepository, times(1)).save(point);
+        assertEquals(2000, pointChargeResponseDto.amt());
     }
 
     @Test
@@ -79,21 +99,17 @@ class PointServiceTest {
 
         Member member = new Member();
         member.setMemberId("shin");
+        given(userRepository.findForUpdateByMemberId("shin")).willReturn(Optional.of(member));
 
-        PointChargeRequestDto dto = new PointChargeRequestDto();
-        dto.setMemberId("shin");
-        dto.setAmount(300);
+        Point np = new Point();
+        np.setMemberId(member.getMemberId());
+        np.setPointAmt(0);
+        given(pointRepository.findForUpdateByMemberId("shin")).willReturn(Optional.of(np));
 
-        given(userRepository.findByMemberId("shin")).willReturn(Optional.of(member));
-        given(pointRepository.findByMemberId("shin")).willReturn(Optional.empty());
-        given(pointRepository.save(any(Point.class))).willAnswer(invocation -> invocation.getArgument(0));
+        PointChargeRequest dto = new PointChargeRequest(1000);
+        pointResponse pointChargeResponseDto = pointService.chargePoint(dto, userDetails);
 
-        PointChargeResponseDto pointChargeResponseDto = pointService.chargePoint(dto);
-
-        assertEquals("shin", pointChargeResponseDto.getMemberId());
-        assertEquals(300, pointChargeResponseDto.getPointAmt());
-        verify(pointRepository, times(1)).save(any(Point.class));
+        assertEquals("shin", pointChargeResponseDto.memberId());
+        assertEquals(1000, pointChargeResponseDto.amt());
     }
-
-
 }

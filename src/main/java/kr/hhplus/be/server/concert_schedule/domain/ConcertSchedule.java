@@ -3,14 +3,15 @@ package kr.hhplus.be.server.concert_schedule.domain;
 import jakarta.persistence.*;
 import kr.hhplus.be.server.concert.domain.Concert;
 import kr.hhplus.be.server.seat.domain.Seat;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter @Setter
 public class ConcertSchedule {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,7 +28,7 @@ public class ConcertSchedule {
     private List<Seat> seats = new ArrayList<>();
 
     public void addSeat(Seat seat) {
-        seats.add(seat);     // 부모 → 자식 방향
-        seat.setSchedule(this);   // 자식 → 부모 방향 (FK 세팅)
+        seats.add(seat);            // 부모 → 자식 방향
+        seat.setSchedule(this);     // 자식 → 부모 방향 (FK 세팅)
     }
 }

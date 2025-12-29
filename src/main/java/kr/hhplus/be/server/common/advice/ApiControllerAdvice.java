@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.common.advice;
 
-import kr.hhplus.be.server.common.exception.DuplicateMemberException;
-import kr.hhplus.be.server.common.exception.InvalidUserException;
+import kr.hhplus.be.server.common.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,6 +29,27 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(value = DuplicateMemberException.class)
     public ResponseEntity<String> DuplicateMemberException(DuplicateMemberException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(e.getMessage());
+    }
+
+    @ExceptionHandler(value = ChargePointException.class)
+    public ResponseEntity<String> ChargePointException(ChargePointException e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(e.getMessage());
+    }
+
+    @ExceptionHandler(value = SeatException.class)
+    public ResponseEntity<String> ChargePointException(SeatException e) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(e.getMessage());
+    }
+
+    @ExceptionHandler(value = PaymentException.class)
+    public ResponseEntity<String> PaymentException(PaymentException e) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(e.getMessage());
