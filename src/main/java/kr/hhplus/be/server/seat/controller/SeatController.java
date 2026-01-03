@@ -23,8 +23,10 @@ public class SeatController {
     }
 
     @PostMapping("/request")
-    public ResponseEntity<String> seatReservationRequest(@RequestBody seatReservationRequestDto requestDto, @AuthenticationPrincipal UserDetails userDetails) {
-        seatService.seatReservationRequest(requestDto, userDetails);
+    public ResponseEntity<String> seatReservationRequest(@RequestBody seatReservationRequestDto requestDto,
+                                                         @RequestHeader("Queue-Token") String queueToken,
+                                                         @AuthenticationPrincipal UserDetails userDetails) {
+        seatService.seatReservationRequest(requestDto, queueToken, userDetails);
 
         return ResponseEntity.ok("좌석 예약에 성공했습니다.");
     }

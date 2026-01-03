@@ -11,6 +11,7 @@ import kr.hhplus.be.server.member.repository.MemberRepository;
 import kr.hhplus.be.server.payment.domain.Payment;
 import kr.hhplus.be.server.payment.domain.PaymentStatus;
 import kr.hhplus.be.server.payment.repository.PaymentRepository;
+import kr.hhplus.be.server.queue.service.QueueTokenService;
 import kr.hhplus.be.server.seat.domain.Seat;
 import kr.hhplus.be.server.seat.domain.SeatStatus;
 import kr.hhplus.be.server.seat.dto.SeatDto;
@@ -33,6 +34,7 @@ public class SeatService {
     private final MemberRepository memberRepository;
     private final ConcertScheduleRepository concertScheduleRepository;
     private final PaymentRepository paymentRepository;
+    private final QueueTokenService queueTokenService;
 
     public seatResponseDto getSeat(Long concertScheduleId) {
 
@@ -59,7 +61,9 @@ public class SeatService {
     }
 
     @Transactional
-    public void seatReservationRequest(SeatDto.seatReservationRequestDto requestDto, UserDetails userDetails) {
+    public void seatReservationRequest(SeatDto.seatReservationRequestDto requestDto, String queueToken, UserDetails userDetails) {
+
+        queueTokenService.validateActiveToken(queueToken, userDetails.getUsername());
 
         Member member = memberRepository.findByMemberId(userDetails.getUsername())
                 .orElseThrow(InvalidUserException::new);
@@ -107,4 +111,6 @@ public class SeatService {
 
         paymentRepository.save(payment);
     }
+
+
 }
