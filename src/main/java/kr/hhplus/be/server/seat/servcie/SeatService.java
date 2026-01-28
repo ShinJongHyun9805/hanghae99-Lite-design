@@ -1,7 +1,9 @@
 package kr.hhplus.be.server.seat.servcie;
 
 import jakarta.transaction.Transactional;
+import kr.hhplus.be.server.common.config.cache.RedisLockService;
 import kr.hhplus.be.server.common.exception.ConcertScheduleException;
+import kr.hhplus.be.server.common.exception.DistributedLockException;
 import kr.hhplus.be.server.common.exception.InvalidUserException;
 import kr.hhplus.be.server.common.exception.SeatException;
 import kr.hhplus.be.server.concert_schedule.domain.ConcertSchedule;
@@ -19,6 +21,7 @@ import kr.hhplus.be.server.seat.dto.SeatDto.seatResponseDto;
 import kr.hhplus.be.server.seat.dto.SeatDto.seatResponseDto.SeatResponse;
 import kr.hhplus.be.server.seat.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeatService {
@@ -35,6 +39,7 @@ public class SeatService {
     private final ConcertScheduleRepository concertScheduleRepository;
     private final PaymentRepository paymentRepository;
     private final QueueTokenService queueTokenService;
+    private final RedisLockService redisLockService;
 
     public seatResponseDto getSeat(Long concertScheduleId) {
 
@@ -60,9 +65,65 @@ public class SeatService {
         return new seatResponseDto(availableSeatList);
     }
 
-    @Transactional
+    /**
+     * 좌석 예약 요청 (Redis 분산락 적용)
+     * 
+     * [적용 범위]
+     * - 좌석 예약의 전체 트랜잭션 (좌석 상태 확인 → LOCKED 처리 → 결제 대기 생성)
+     * 
+     * [락 키 전략]
+     * - "lock:seat:{concertScheduleId}:{seatId}"
+     * - 콘서트 회차별, 좌석별로 독립적인 락 (동시성 극대화)
+     * 
+     * [분산락과 DB Tx 관계]
+     * 1. 분산락 획득 (Redis SETNX)
+     * 2. DB Transaction 시작 (@Transactional)
+     * 3. 비즈니스 로직 수행
+     * 4. DB Transaction 커밋
+     * 5. 분산락 해제 (finally)
+     * 
+     * [타임아웃 설정]
+     * - waitTime: 5초 (락 획득 대기)
+     * - leaseTime: 10초 (락 자동 해제, 데드락 방지)
+     */
     public void seatReservationRequest(SeatDto.seatReservationRequestDto requestDto, String queueToken, UserDetails userDetails) {
+        // 적절한 락 키 생성: 콘서트 회차 + 좌석 ID
+        String lockKey = RedisLockService.generateLockKey(
+                "seat",
+                requestDto.concertScheduleId(),
+                requestDto.seatId()
+        );
 
+        log.info("좌석 예약 요청 - 분산락 시도: lockKey={}", lockKey);
+
+        // 분산락 획득 (폴링 방식, 최대 5초 대기)
+        boolean acquired = redisLockService.tryLock(lockKey, 5, 10);
+
+        if (!acquired) {
+            log.error("좌석 예약 실패 - 분산락 획득 실패: lockKey={}", lockKey);
+            throw new DistributedLockException("다른 사용자가 해당 좌석을 예약 중입니다. 잠시 후 다시 시도해주세요.");
+        }
+
+        try {
+            // 분산락 획득 후 DB Transaction 시작
+            log.info("좌석 예약 처리 시작 - 분산락 획득 완료: lockKey={}", lockKey);
+            seatReservationWithTransaction(requestDto, queueToken, userDetails);
+            log.info("좌석 예약 처리 완료: lockKey={}", lockKey);
+        } finally {
+            // 반드시 분산락 해제 (데드락 방지)
+            redisLockService.unlock(lockKey);
+            log.info("분산락 해제: lockKey={}", lockKey);
+        }
+    }
+
+    /**
+     * 좌석 예약 비즈니스 로직 (DB Transaction 범위)
+     * 
+     * - 분산락 내부에서 실행되어야 함
+     * - DB 락(PESSIMISTIC_WRITE) 대신 Redis 분산락으로 동시성 제어
+     */
+    @Transactional
+    public void seatReservationWithTransaction(SeatDto.seatReservationRequestDto requestDto, String queueToken, UserDetails userDetails) {
         queueTokenService.validateActiveToken(queueToken, userDetails.getUsername());
 
         Member member = memberRepository.findByMemberId(userDetails.getUsername())
@@ -82,7 +143,7 @@ public class SeatService {
 
             if (invalidLocked) {
                 throw new SeatException().ReservedSeatException();
-            }    
+            }
         }
 
         // 해당 좌석 LOCKED 처리
