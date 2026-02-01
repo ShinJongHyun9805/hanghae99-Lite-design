@@ -20,4 +20,11 @@ public class Point {
     public void chargePoint(int amount) {
         this.pointAmt += amount;
     }
+
+    public void usePoint(int amount) {
+        if (this.pointAmt < amount) {
+            throw new IllegalArgumentException("포인트가 부족합니다.");
+        }
+        this.pointAmt -= amount;
+    }
 }

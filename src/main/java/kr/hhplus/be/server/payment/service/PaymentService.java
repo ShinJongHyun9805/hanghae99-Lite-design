@@ -12,6 +12,8 @@ import kr.hhplus.be.server.payment.dto.PaymentDto.PaymentCompleteResponse;
 import kr.hhplus.be.server.payment.dto.PaymentDto.PaymentListResult;
 import kr.hhplus.be.server.payment.repository.PaymentRepository;
 import kr.hhplus.be.server.payment.result.PaymentHistoryResult;
+import kr.hhplus.be.server.point.domain.Point;
+import kr.hhplus.be.server.point.repository.PointRepository;
 import kr.hhplus.be.server.seat.domain.Seat;
 import kr.hhplus.be.server.seat.domain.SeatStatus;
 import kr.hhplus.be.server.seat.repository.SeatRepository;
@@ -29,6 +31,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final SeatRepository seatRepository;
     private final ConcertRepository concertRepository;
+    private final PointRepository pointRepository;
 
     public PaymentAllListResponse getPaymentHistory(Long memberId) {
 
@@ -111,16 +114,42 @@ public class PaymentService {
             seat.setLockedAt(null);
             seat.setLockedUserId(null);
         } else {
-            payment.setPaymentStatus(PaymentStatus.PAYMENT);
-            payment.setPaymentAt(now);
+            // 포인트 확인 및 차감 (동시성 고려를 위해 SELECT FOR UPDATE 사용)
+            String memberIdStr = String.valueOf(payment.getMemberId());
+            Point point = pointRepository.findForUpdateByMemberId(memberIdStr)
+                    .orElseGet(() -> {
+                        Point newPoint = new Point();
+                        newPoint.setMemberId(memberIdStr);
+                        newPoint.setPointAmt(0);
+                        return pointRepository.save(newPoint);
+                    });
 
-            seat.setSeatStatus(SeatStatus.RESERVED);
+            int requiredAmount = payment.getPrice();
+            int currentPoint = point.getPointAmt();
 
-            paymentRepository.cancelOtherPendings(
-                    payment.getSeatId(),
-                    payment.getId(),
-                    "요청 시간 만료"
-            );
+            // 포인트가 부족한 경우 결제 취소
+            if (currentPoint < requiredAmount) {
+                payment.setPaymentStatus(PaymentStatus.CANCEL);
+                payment.setCancelReason("INSUFFICIENT_POINT");
+
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+                seat.setLockedAt(null);
+                seat.setLockedUserId(null);
+            } else {
+                // 포인트 차감
+                point.usePoint(requiredAmount);
+
+                payment.setPaymentStatus(PaymentStatus.PAYMENT);
+                payment.setPaymentAt(now);
+
+                seat.setSeatStatus(SeatStatus.RESERVED);
+
+                paymentRepository.cancelOtherPendings(
+                        payment.getSeatId(),
+                        payment.getId(),
+                        "요청 시간 만료"
+                );
+            }
         }
 
         return new PaymentCompleteResponse(paymentId

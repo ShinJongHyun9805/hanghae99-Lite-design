@@ -10,3 +10,11 @@ spring:
   sql:
     init:
       mode: always
+
+  data:
+    redis:
+      host: localhost
+      port: 6370  # 테스트용 포트 (임베디드 Redis)
+      
+  cache:
+    type: redis

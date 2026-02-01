@@ -36,7 +36,10 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-cache")
 
+	// Redis (Spring Cache backend)
+	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
 	// Lombok
 	compileOnly("org.projectlombok:lombok:1.18.28")
@@ -61,6 +64,9 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
+	
+	// Embedded Redis for testing
+	testImplementation("it.ozimov:embedded-redis:0.7.3")
 }
 
 tasks.withType<Test> {

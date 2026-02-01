@@ -54,4 +54,11 @@ class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(e.getMessage());
     }
+
+    @ExceptionHandler(value = DistributedLockException.class)
+    public ResponseEntity<String> DistributedLockException(DistributedLockException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(e.getMessage());
+    }
 }
