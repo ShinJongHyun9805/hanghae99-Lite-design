@@ -14,7 +14,10 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6370  # 테스트용 포트 (임베디드 Redis)
-      
+      port: 6370  # test port (embedded redis)
+
   cache:
     type: redis
+
+  flyway:
+    enabled: false

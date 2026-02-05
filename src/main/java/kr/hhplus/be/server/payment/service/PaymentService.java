@@ -1,6 +1,5 @@
 package kr.hhplus.be.server.payment.service;
 
-import jakarta.transaction.Transactional;
 import kr.hhplus.be.server.common.exception.PaymentException;
 import kr.hhplus.be.server.common.exception.SeatException;
 import kr.hhplus.be.server.concert.domain.Concert;
@@ -10,6 +9,7 @@ import kr.hhplus.be.server.payment.domain.PaymentStatus;
 import kr.hhplus.be.server.payment.dto.PaymentDto.PaymentAllListResponse;
 import kr.hhplus.be.server.payment.dto.PaymentDto.PaymentCompleteResponse;
 import kr.hhplus.be.server.payment.dto.PaymentDto.PaymentListResult;
+import kr.hhplus.be.server.payment.event.PaymentCompletedEvent;
 import kr.hhplus.be.server.payment.repository.PaymentRepository;
 import kr.hhplus.be.server.payment.result.PaymentHistoryResult;
 import kr.hhplus.be.server.point.domain.Point;
@@ -19,7 +19,9 @@ import kr.hhplus.be.server.seat.domain.SeatStatus;
 import kr.hhplus.be.server.seat.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +34,7 @@ public class PaymentService {
     private final SeatRepository seatRepository;
     private final ConcertRepository concertRepository;
     private final PointRepository pointRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public PaymentAllListResponse getPaymentHistory(Long memberId) {
 
@@ -46,40 +49,40 @@ public class PaymentService {
                 .filter(e -> ObjectUtils.isNotEmpty(e.getLockedAt()))
                 .filter(e -> e.getLockedAt().plusMinutes(5).isAfter(now) || e.getLockedAt().plusMinutes(5).isEqual(now))
                 .map(e -> new PaymentListResult(
-                            e.getPaymentId()
-                            , e.getTitle()
-                            , e.getVenueName()
-                            , e.getPrice()
-                            , e.getPaymentStatus().getDisplayName()
-                            , e.getModDt()
-                    ))
+                        e.getPaymentId()
+                        , e.getTitle()
+                        , e.getVenueName()
+                        , e.getPrice()
+                        , e.getPaymentStatus().getDisplayName()
+                        , e.getModDt()
+                ))
                 .toList();
 
         // 결제 완료
         // 결제 완료
         List<PaymentListResult> paymentCompletedList = paymentsHistoryList.stream()
-                        .filter(e -> e.getPaymentStatus() == PaymentStatus.PAYMENT)
-                        .map(e -> new PaymentListResult(
-                                e.getPaymentId(),
-                                e.getTitle(),
-                                e.getVenueName(),
-                                e.getPrice(),
-                                e.getPaymentStatus().getDisplayName(),
-                                e.getModDt()
-                        ))
-                        .toList();
+                .filter(e -> e.getPaymentStatus() == PaymentStatus.PAYMENT)
+                .map(e -> new PaymentListResult(
+                        e.getPaymentId(),
+                        e.getTitle(),
+                        e.getVenueName(),
+                        e.getPrice(),
+                        e.getPaymentStatus().getDisplayName(),
+                        e.getModDt()
+                ))
+                .toList();
 
         // 결제 취소
         List<PaymentListResult> paymentCancelList = paymentsHistoryList.stream()
                 .filter(e -> e.getPaymentStatus() == PaymentStatus.CANCEL)
                 .map(e -> new PaymentListResult(
-                            e.getPaymentId()
-                            , e.getTitle()
-                            , e.getVenueName()
-                            , e.getPrice()
-                            , e.getPaymentStatus().getDisplayName()
-                            , e.getModDt()
-                    ))
+                        e.getPaymentId()
+                        , e.getTitle()
+                        , e.getVenueName()
+                        , e.getPrice()
+                        , e.getPaymentStatus().getDisplayName()
+                        , e.getModDt()
+                ))
                 .toList();
 
         return new PaymentAllListResponse(pendingPaymentList, paymentCompletedList, paymentCancelList);
@@ -91,6 +94,19 @@ public class PaymentService {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new PaymentException().InvalidPaymentException());
 
+        Concert concert = concertRepository.findById(payment.getConcertId())
+                .orElseThrow(() -> new PaymentException().InvalidPaymentException());
+
+        if (payment.getPaymentStatus() == PaymentStatus.PAYMENT) {
+            return new PaymentCompleteResponse(paymentId
+                    , concert.getTitle()
+                    , concert.getVenueName()
+                    , payment.getPrice()
+                    , payment.getPaymentStatus().getDisplayName()
+                    , payment.getPaymentAt()
+            );
+        }
+
         if (payment.getPaymentStatus() != PaymentStatus.PENDING) {
             throw new PaymentException().InvalidPaymentException();
         }
@@ -98,13 +114,11 @@ public class PaymentService {
         Seat seat = seatRepository.findByIdForUpdate(payment.getSeatId())
                 .orElseThrow(() -> new SeatException().InvalidSeatException());
 
-        Concert concert = concertRepository.findById(payment.getConcertId())
-                .orElseThrow(() -> new PaymentException().InvalidPaymentException());
-
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expireAt = seat.getLockedAt().plusMinutes(5);
 
         boolean expired = expireAt.isBefore(now);
+        boolean paidNow = false;
 
         if (expired) {
             payment.setPaymentStatus(PaymentStatus.CANCEL);
@@ -141,6 +155,7 @@ public class PaymentService {
 
                 payment.setPaymentStatus(PaymentStatus.PAYMENT);
                 payment.setPaymentAt(now);
+                paidNow = true;
 
                 seat.setSeatStatus(SeatStatus.RESERVED);
 
@@ -150,6 +165,14 @@ public class PaymentService {
                         "요청 시간 만료"
                 );
             }
+        }
+
+        if (paidNow) {
+            eventPublisher.publishEvent(new PaymentCompletedEvent(
+                    payment.getId(),
+                    payment.getConcertScheduleId(),
+                    payment.getPaymentAt()
+            ));
         }
 
         return new PaymentCompleteResponse(paymentId
