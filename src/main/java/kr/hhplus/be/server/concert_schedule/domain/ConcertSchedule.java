@@ -11,14 +11,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 public class ConcertSchedule {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long concertScheduleId;
 
     LocalDateTime concertDate;
 
+    @Column(name = "sales_open_at", nullable = false)
+    private LocalDateTime salesOpenAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "concert_id")
@@ -30,5 +34,12 @@ public class ConcertSchedule {
     public void addSeat(Seat seat) {
         seats.add(seat);            // 부모 → 자식 방향
         seat.setSchedule(this);     // 자식 → 부모 방향 (FK 세팅)
+    }
+
+    @PrePersist
+    void prePersist() {
+        if (salesOpenAt == null) {
+            salesOpenAt = concertDate;
+        }
     }
 }

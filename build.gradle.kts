@@ -23,6 +23,10 @@ repositories {
 	mavenCentral()
 }
 
+configurations.all {
+	exclude(group = "org.slf4j", module = "slf4j-simple")
+}
+
 dependencyManagement {
 	imports {
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:2024.0.0")
@@ -40,6 +44,10 @@ dependencies {
 
 	// Redis (Spring Cache backend)
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+	// Flyway
+	implementation("org.flywaydb:flyway-core")
+	runtimeOnly("org.flywaydb:flyway-mysql")
 
 	// Lombok
 	compileOnly("org.projectlombok:lombok:1.18.28")
